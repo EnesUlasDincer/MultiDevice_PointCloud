@@ -1,0 +1,7 @@
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/myMultiDeviceSync.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/edit_cache.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/rebuild_cache.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/list_install_components.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/install.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/install/local.dir
+/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build/CMakeFiles/install/strip.dir

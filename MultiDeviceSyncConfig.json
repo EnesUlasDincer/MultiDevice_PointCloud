@@ -1,0 +1,32 @@
+{
+    "version": "1.0.0",
+    "configTime": "2023/01/01",
+    "devices": [
+        {
+            "sn": "CL8A8420179",
+            "syncConfig": {
+                "syncMode": "OB_MULTI_DEVICE_SYNC_MODE_STANDALONE",
+                "depthDelayUs": 160,
+                "colorDelayUs": 160,
+                "trigger2ImageDelayUs": 0,
+                "triggerOutEnable": true,
+                "triggerOutDelayUs": 0,
+                "framesPerTrigger": 1
+            }
+        },
+        {
+            "sn": "CL8A84201GW",
+            "syncConfig": {
+                "syncMode": "OB_MULTI_DEVICE_SYNC_MODE_STANDALONE",
+                "depthDelayUs": 160,
+                "colorDelayUs": 160,
+                "trigger2ImageDelayUs": 0,
+                "triggerOutEnable": true,
+                "triggerOutDelayUs": 0,
+                "framesPerTrigger": 1
+            }
+        }
+    ]
+}
+
+
