@@ -9,9 +9,7 @@ std::map<uint8_t, std::shared_ptr<ob::Frame>> depthFrames; // Stores depth frame
 std::vector<std::shared_ptr<ob::Device>> streamDevList;
 std::vector<std::shared_ptr<ob::Device>> configDevList;
 std::vector<std::shared_ptr<DeviceConfigInfo>> deviceConfigList;
-std::vector<ob::PointCloudFilter> pointCloudFilters;
 
-std::vector<std::shared_ptr<PipelineHolder>> pipelineHolderList;
 
 std::condition_variable waitRebootCompleteCondition;
 std::mutex rebootingDevInfoListMutex;
@@ -19,6 +17,55 @@ std::vector<std::shared_ptr<ob::DeviceInfo>> rebootingDevInfoList;
 
 ob::Context context;
 
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <iostream>
+namespace InputUtils {
+
+int kbhit() {
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+
+    // Save terminal settings
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+    ch = getchar();
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+    if (ch != EOF) {
+        ungetc(ch, stdin);
+        return 1;
+    }
+
+    return 0;
+}
+
+char getch() {
+    struct termios oldt, newt;
+    char ch;
+
+    // Save terminal settings
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    ch = getchar();
+
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+}
 
 void wait_any_key() { system("pause"); }
 
@@ -91,7 +138,7 @@ int configMultiDeviceSync() try {
   exit(EXIT_FAILURE);
 }
 
-std::map<uint8_t, std::shared_ptr<ob::Frame>> pointCloudFrames;
+
 
 // Convert a std::shared_ptr<ob::Frame> to a std::vector<OBColorPoint>
 std::vector<OBColorPoint> frameToVector(const std::shared_ptr<ob::Frame> &frame) {
@@ -130,6 +177,8 @@ void saveRGBPointsToPly(const std::vector<OBColorPoint> &points, std::string fil
                   << ") Color: (" << (int)points[i].r << ", " << (int)points[i].g << ", " << (int)points[i].b << ")\n";
     }
 
+    std::cout << "open file: " << fileName << std::endl;
+
     FILE *fp = fopen(fileName.c_str(), "wb+");
     if (!fp) {
         std::cerr << "Failed to open file: " << fileName << std::endl;
@@ -142,21 +191,58 @@ void saveRGBPointsToPly(const std::vector<OBColorPoint> &points, std::string fil
     fprintf(fp, "property uchar red\nproperty uchar green\nproperty uchar blue\n");
     fprintf(fp, "end_header\n");
 
-    // Write point data
-    for (const auto &point : points) {
-        fprintf(fp, "%.3f %.3f %.3f %d %d %d\n", point.x, point.y, point.z, 
+    std::cout << "Writing points to file..." << std::endl;
+    
+    if(points.empty()) {
+        std::cerr << "No points to write!" << std::endl;
+        fclose(fp);
+        return;
+    }
+
+    // Just for debugging:
+      std::cout << "points.size() = " << points.size() << std::endl;
+
+    for(const auto &point : points) {
+        fprintf(fp, "%.3f %.3f %.3f %d %d %d\n",
+                point.x, point.y, point.z,
                 (int)point.r, (int)point.g, (int)point.b);
     }
+
+    std::cout << "Closing file..." << std::endl;
 
     fclose(fp);
     std::cout << "File saved successfully: " << fileName << std::endl;
 }
 
-// Function to configure and retrieve depth stream profiles
-std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeline, 
-                                                            std::shared_ptr<ob::VideoStreamProfile> colorProfile, 
-                                                            OBAlignMode &alignMode,
-                                                            std::shared_ptr<ob::Config> config) {
+// Utility function to find the highest resolution that meets your desired specs
+std::shared_ptr<ob::StreamProfile> findHighResDepthProfile(
+    std::shared_ptr<ob::StreamProfileList> depthProfiles, 
+    int desiredFPS = 15
+) {
+    std::shared_ptr<ob::StreamProfile> bestProfile = nullptr;
+    int bestResolution = 0; // Keep track of area = width * height
+
+    for (int i = 0; i < depthProfiles->count(); i++) {
+        auto sp = depthProfiles->getProfile(i)->as<ob::VideoStreamProfile>();
+        if (!sp) continue;
+
+        if (sp->fps() == desiredFPS || desiredFPS == OB_FPS_ANY) {
+            int resolution = sp->width() * sp->height();
+            if (resolution > bestResolution) {
+                bestResolution = resolution;
+                bestProfile = sp;
+            }
+        }
+    }
+    return bestProfile;
+}
+
+std::shared_ptr<ob::StreamProfileList> configureDepthStream(
+    ob::Pipeline &pipeline, 
+    std::shared_ptr<ob::VideoStreamProfile> colorProfile, 
+    OBAlignMode &alignMode,
+    std::shared_ptr<ob::Config> config
+) {
     std::shared_ptr<ob::StreamProfileList> depthProfileList;
 
     try {
@@ -192,15 +278,26 @@ std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeli
                 // Attempt to match the frame rate with the color profile
                 if (colorProfile) {
                     std::cout << "Matching depth frame rate with color profile..." << std::endl;
-                    std::cout << "Matching depth frame rate with color profile..." << std::endl;
-                    std::cout << "Matching depth frame rate with color profile..." << std::endl;
-                    std::cout << "Matching depth frame rate with color profile..." << std::endl;
                     //depthProfile = depthProfileList->getVideoStreamProfile(OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FORMAT_ANY, colorProfile->fps());
                     // Configure the depth stream explicitly
-                    // depthProfile = depthProfileList->getVideoStreamProfile(640, 576, OB_FORMAT_Y16, 30);
-                    depthProfile = depthProfileList->getVideoStreamProfile(640, 576, OB_FORMAT_Y16, 15);
 
+                    int choice = 0
+                    ;                    
 
+                    OBFormat f = OB_FORMAT_Y16;
+                    if(choice == 0){
+                      depthProfile = depthProfileList->getVideoStreamProfile(640, 576, f, 30);
+                    }else if (choice == 1)
+                    {
+                      depthProfile = depthProfileList->getVideoStreamProfile(512, 512, f, 30);
+                    }else if (choice == 2)
+                    {
+                      depthProfile = depthProfileList->getVideoStreamProfile(320, 288, f, 30);
+                    }else if (choice == 3)
+                    {
+                      depthProfile = depthProfileList->getVideoStreamProfile(1024, 1024, f, 30);
+                    }
+                    
                 }
             } catch (...) {
                 // Fallback to default profile if no matching frame rate is found
@@ -211,17 +308,6 @@ std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeli
                 depthProfile = depthProfileList->getProfile(OB_PROFILE_DEFAULT);
                 std::cout << "Using default depth profile." << std::endl;
             }
-
-            // Print available depth profiles
-            std::cout << "Color FPS: " << colorProfile->fps() << std::endl;
-
-            std::cout << "Available depth profiles:" << std::endl;
-            for (int i = 0; i < depthProfileList->count(); i++) {
-                auto profile = depthProfileList->getProfile(i)->as<ob::VideoStreamProfile>();
-                std::cout << "  - " << profile->width() << "x" << profile->height() 
-                          << ", FPS: " << profile->fps()
-                          << ", Format: " << profile->format() << std::endl;
-            }
             
 
             if (!depthProfile) {
@@ -229,11 +315,6 @@ std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeli
                 exit(EXIT_FAILURE);
             }
             std::cout << "config->enableStream" << std::endl;
-
-            std::cout << "Final Color Stream: " 
-            << colorProfile->width() << "x" << colorProfile->height()
-            << " at " << colorProfile->fps() << " FPS." << std::endl;
-
             config->enableStream(depthProfile);
         } else {
             std::cerr << "No depth profiles available for the current device!" << std::endl;
@@ -245,8 +326,7 @@ std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeli
         return nullptr; // Explicitly return nullptr on failure
     }
 
-    std::cout << "Align Mode: " << alignMode << std::endl;
-
+    alignMode = ALIGN_D2C_SW_MODE;
     config->setAlignMode(alignMode);
 
     if (depthProfileList && depthProfileList->count() > 0) {
@@ -255,20 +335,32 @@ std::shared_ptr<ob::StreamProfileList> configureDepthStream(ob::Pipeline &pipeli
         std::cerr << "Failed to configure depth stream." << std::endl;
     }
 
-
     return depthProfileList;
 }
 
 // Function to configure and enable the color stream
 std::shared_ptr<ob::VideoStreamProfile> configureColorStream(ob::Pipeline &pipeline, std::shared_ptr<ob::Config> config) {
+  
     std::shared_ptr<ob::VideoStreamProfile> colorProfile = nullptr;
     try {
         // Get all stream profiles of the color camera
         auto colorProfiles = pipeline.getStreamProfileList(OB_SENSOR_COLOR);
         if (colorProfiles) {
             // Select the default profile
-            auto profile = colorProfiles->getProfile(OB_PROFILE_DEFAULT);
-            colorProfile = profile->as<ob::VideoStreamProfile>();
+            // auto profile = colorProfiles->getProfile(OB_PROFILE_DEFAULT);
+            // colorProfile = profile->as<ob::VideoStreamProfile>();
+
+            OBFormat f = OB_FORMAT_RGB888;
+
+
+            colorProfile = colorProfiles->getVideoStreamProfile(1920, 1080, f, 30); // nv12 bgra
+
+            // 3840, 2160
+            // 2560, 1440
+            // 1920, 1080
+            // 1280,  960
+            // 1280,  720
+
             config->enableStream(colorProfile);
             std::cout << "Color stream enabled successfully." << std::endl;
         } else {
@@ -278,22 +370,21 @@ std::shared_ptr<ob::VideoStreamProfile> configureColorStream(ob::Pipeline &pipel
         config->setAlignMode(ALIGN_DISABLE); // Disable alignment if color stream is unavailable
         std::cerr << "Failed to enable color stream: " << e.getMessage() << std::endl;
     }
-
-    if (colorProfile) {
-        //config->setAlignMode(ALIGN_D2C_HW_MODE); // Enable D2C alignment if color stream is available
-        
-        config->setAlignMode(ALIGN_D2C_SW_MODE); // Enable D2C alignment if color stream is available
-    } else {
-        config->setAlignMode(ALIGN_DISABLE);
-    }
-
     return colorProfile;
 }
+
 
 int testMultiDeviceSync() try {
     streamDevList.clear();
     auto devList = context.queryDeviceList();
     int devCount = devList->deviceCount();
+
+
+    std::map<uint8_t, std::shared_ptr<ob::Frame>> pointCloudFrames;
+    std::vector<ob::PointCloudFilter> pointCloudFilters;
+
+    std::vector<std::shared_ptr<PipelineHolder>> pipelineHolderList(devCount);
+
     
     for (int i = 0; i < devCount; i++) {
         streamDevList.push_back(devList->getDevice(i));
@@ -315,7 +406,27 @@ int testMultiDeviceSync() try {
         dev->setMultiDeviceSyncConfig(config);
         std::cout << "Configured device " << deviceIndex << " to standalone mode." << std::endl;
 
-        // Create pipeline
+        // Configure depth range
+        try {
+            // Set minimum depth to 100mm (10cm)
+            dev->setIntProperty(OB_PROP_MIN_DEPTH_INT, 100);
+            std::cout << "Set minimum depth to: " << dev->getIntProperty(OB_PROP_MIN_DEPTH_INT) << "mm" << std::endl;
+
+            // Set maximum depth to 10000mm (10m)
+            dev->setIntProperty(OB_PROP_MAX_DEPTH_INT, 10000);
+            std::cout << "Set maximum depth to: " << dev->getIntProperty(OB_PROP_MAX_DEPTH_INT) << "mm" << std::endl;
+
+            // Optional: Print current depth range
+            int minDepth = dev->getIntProperty(OB_PROP_MIN_DEPTH_INT);
+            int maxDepth = dev->getIntProperty(OB_PROP_MAX_DEPTH_INT);
+            std::cout << "Device " << deviceIndex << " depth range: " 
+                     << minDepth << "mm to " << maxDepth << "mm" << std::endl;
+        }
+        catch (ob::Error &e) {
+            std::cerr << "Failed to set depth range for device " << deviceIndex 
+                     << ": " << e.getMessage() << std::endl;
+        }
+        
         auto pipelineHolder = std::make_shared<PipelineHolder>();
         pipelineHolder->pipeline = std::make_shared<ob::Pipeline>(dev);
         pipelineHolder->deviceIndex = deviceIndex;
@@ -337,17 +448,44 @@ int testMultiDeviceSync() try {
 
         // Initialize point cloud filter
         ob::PointCloudFilter pointCloudFilter;
+        //dev->getIntProperty
+
         auto cameraParam = dev->getCalibrationCameraParamList()->getCameraParam(0);
+
+        // print cameraParam
+        std::cout << "Device: " << deviceIndex << std::endl;
+        std::cout << "CameraParam: " << std::endl;
+        std::cout << "Depth Intrinsic: " << cameraParam.depthIntrinsic.width << "x" << cameraParam.depthIntrinsic.height << std::endl;
+        std::cout << "RGB Intrinsic: " << cameraParam.rgbIntrinsic.width << "x" << cameraParam.rgbIntrinsic.height << std::endl;
+        std::cout << "Depth Distortion: " << cameraParam.depthDistortion.k1 << " " << cameraParam.depthDistortion.k2 << " " << cameraParam.depthDistortion.k3 << " " << cameraParam.depthDistortion.k4 << " " << cameraParam.depthDistortion.k5 << std::endl;
+        std::cout << "RGB Distortion: " << cameraParam.rgbDistortion.k1 << " " << cameraParam.rgbDistortion.k2 << " " << cameraParam.rgbDistortion.k3 << " " << cameraParam.rgbDistortion.k4 << " " << cameraParam.rgbDistortion.k5 << std::endl;
+        std::cout << "Transform: " << cameraParam.transform.rot[0] << " " << cameraParam.transform.rot[1] << " " << cameraParam.transform.rot[2] << " " << cameraParam.transform.rot[3] << " " << cameraParam.transform.rot[4] << " " << cameraParam.transform.rot[5] << " " << cameraParam.transform.rot[6] << " " << cameraParam.transform.rot[7] << " " << cameraParam.transform.rot[8] << " " << cameraParam.transform.trans[0] << " " << cameraParam.transform.trans[1] << " " << cameraParam.transform.trans[2] << std::endl;
+        
+        /*
+                Device: 0
+        CameraParam: 
+        Depth Intrinsic: 1024x1024
+        RGB Intrinsic: 640x360
+        Depth Distortion: 13.9249 6.82882 0.235893 14.2438 11.5366
+        RGB Distortion: 0.0764899 -0.105664 0.0430727 0 0
+        Transform: 0.994121 0.00221697 0.00181275 -0.00240018 0.99412 0.108254 -0.00156209 -0.108258 0.994122 -32.6268 -0.878779 2.29152
+
+        Device: 1
+        CameraParam: 
+        Depth Intrinsic: 1024x1024
+        RGB Intrinsic: 640x360
+        Depth Distortion: 26.1786 13.5443 0.496677 26.4655 22.4464
+        RGB Distortion: 0.0737156 -0.10446 0.043283 0 0
+        Transform: 0.993581 0.00790242 -0.000680822 -0.00777466 0.993549 0.113136 0.00157048 -0.113127 0.993579 -32.6164 -0.868447 2.46261
+        */
+
         pointCloudFilter.setCameraParam(cameraParam);
         pointCloudFilter.setCreatePointFormat(OB_FORMAT_RGB_POINT);
-        pointCloudFilter.setCoordinateSystem(OB_LEFT_HAND_COORDINATE_SYSTEM);
+        pointCloudFilter.setCoordinateSystem(OB_RIGHT_HAND_COORDINATE_SYSTEM);
         pointCloudFilters.push_back(pointCloudFilter);
 
-        pipelineConfig->setAlignMode(ALIGN_D2C_SW_MODE);
-
-
         // Start pipeline with frame callback
-        pipelineHolder->pipeline->start(pipelineConfig, [deviceIndex](std::shared_ptr<ob::FrameSet> frameSet) {
+        pipelineHolder->pipeline->start(pipelineConfig, [deviceIndex, &pointCloudFrames, &pointCloudFilters](std::shared_ptr<ob::FrameSet> frameSet) {
             if (!frameSet) return;
 
             auto colorFrame = frameSet->colorFrame();
@@ -356,28 +494,27 @@ int testMultiDeviceSync() try {
 
             if (colorFrame && depthFrame) {
                 std::lock_guard<std::mutex> lock(frameMutex);
+
+                // Check frame validity
+                if (colorFrame->dataSize() == 0 || depthFrame->dataSize() == 0) {
+                    std::cerr << "Empty frame detected!" << std::endl;
+                    return;
+                }
                 
                 colorFrames[deviceIndex] = colorFrame;
                 depthFrames[deviceIndex] = depthFrame;
 
-                // Generate point cloud
-                try {
-                    auto& filter = pointCloudFilters[deviceIndex];
-                    filter.setPositionDataScaled(depthFrame->getValueScale());
-
-                    auto pointCloud = filter.process(frameSet);
-                    if (pointCloud) {
-                        // std::cout << "Device #" << deviceIndex << ": Point cloud generated. Data size: " 
-                        //           << pointCloud->dataSize() << " bytes" << std::endl;
+                pointCloudFilters[deviceIndex].setPositionDataScaled(depthFrame->getValueScale());
+                
+                auto pointCloud = pointCloudFilters[deviceIndex].process(frameSet);
+                if (pointCloud && pointCloud->dataSize() > 0) {
+                    size_t numPoints = pointCloud->dataSize() / sizeof(OBColorPoint);
+                    if (numPoints > 0) {
                         pointCloudFrames[deviceIndex] = pointCloud;
-                    } else {
-                        std::cerr << "Device #" << deviceIndex << ": Point cloud is NULL!" << std::endl;
+                        std::cout << "Generated point cloud with " << numPoints << " points" << std::endl;
                     }
                 }
-                catch (ob::Error &e) {
-                    std::cerr << "Point cloud generation failed for device " << deviceIndex 
-                             << ": " << e.getMessage() << std::endl;
-                }
+
             }
         });
 
@@ -385,12 +522,12 @@ int testMultiDeviceSync() try {
         deviceIndex++;
     }
 
-    // // Create visualization window
-    Window app("MultiDeviceSyncViewer", 1600, 900);
-    // app.setShowInfo(true);
 
     while (true) {
-        auto key = app.waitKey();
+
+      if(InputUtils::kbhit()) {
+
+        int key = InputUtils::getch();
         
         if (key == 'S' || key == 's') {
             std::cout << "Synchronizing devices..." << std::endl;
@@ -421,9 +558,10 @@ int testMultiDeviceSync() try {
                 std::cout << "Saved point cloud as " << filename.str() << std::endl;
             }
         }
-    }
+      }
 
     }
+      }
 
     // Cleanup
     for (auto &holder : pipelineHolderList) {
@@ -483,17 +621,6 @@ void startStream(std::shared_ptr<PipelineHolder> holder, ob::PointCloudFilter &p
           handleColorStream(deviceIndex, frame);
         } else if (frameType == OB_FRAME_DEPTH) {
           handleDepthStream(deviceIndex, frame);
-          holder->depthValueScale = frameSet->depthFrame()->getValueScale();
-          pointCloudFilter.setPositionDataScaled(holder->depthValueScale);
-          pointCloudFilter.setCoordinateSystem(OB_RIGHT_HAND_COORDINATE_SYSTEM);
-
-          // Generate the colored point cloud
-          std::cout << "Generating RGBD PointCloud..." << std::endl;
-          pointCloudFilter.setCreatePointFormat(OB_FORMAT_POINT); // OB_FORMAT_RGB_POINT , OB_FORMAT_POINT
-          // std::cout << "pointCloudFilter processs" << std::endl;
-          // std::shared_ptr<ob::Frame> frame = pointCloudFilter.process(frameSet);
-
-          // std::cout << "RGBD PointCloud generated successfully!" << std::endl;
         }
       }
     });

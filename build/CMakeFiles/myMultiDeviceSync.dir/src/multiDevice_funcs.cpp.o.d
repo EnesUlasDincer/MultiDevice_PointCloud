@@ -375,4 +375,27 @@ CMakeFiles/myMultiDeviceSync.dir/src/multiDevice_funcs.cpp.o: \
  /usr/include/opencv4/opencv2/stitching/detail/camera.hpp \
  /usr/include/opencv4/opencv2/video.hpp \
  /usr/include/opencv4/opencv2/video/tracking.hpp \
- /usr/include/opencv4/opencv2/video/background_segm.hpp
+ /usr/include/opencv4/opencv2/video/background_segm.hpp \
+ /usr/include/termios.h /usr/include/x86_64-linux-gnu/bits/termios.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-struct.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-c_cc.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-c_iflag.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-c_oflag.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-baud.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-c_cflag.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-c_lflag.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-tcflow.h \
+ /usr/include/x86_64-linux-gnu/bits/termios-misc.h \
+ /usr/include/x86_64-linux-gnu/sys/ttydefaults.h /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/environments.h \
+ /usr/include/x86_64-linux-gnu/bits/confname.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
+ /usr/include/linux/close_range.h /usr/include/fcntl.h \
+ /usr/include/x86_64-linux-gnu/bits/fcntl.h \
+ /usr/include/x86_64-linux-gnu/bits/fcntl-linux.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_iovec.h \
+ /usr/include/linux/falloc.h /usr/include/x86_64-linux-gnu/bits/stat.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_stat.h

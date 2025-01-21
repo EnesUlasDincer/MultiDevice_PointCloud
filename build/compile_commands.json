@@ -1,0 +1,20 @@
+[
+{
+  "directory": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build",
+  "command": "/usr/bin/c++  -I/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include/libobsensor/hpp -I/home/enes/Desktop/ORBBEC/OrbbecSDK/examples/cpp -isystem /usr/include/opencv4 -g -o CMakeFiles/myMultiDeviceSync.dir/src/MultiDeviceSync.cpp.o -c /home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/MultiDeviceSync.cpp",
+  "file": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/MultiDeviceSync.cpp",
+  "output": "CMakeFiles/myMultiDeviceSync.dir/src/MultiDeviceSync.cpp.o"
+},
+{
+  "directory": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build",
+  "command": "/usr/bin/c++  -I/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include/libobsensor/hpp -I/home/enes/Desktop/ORBBEC/OrbbecSDK/examples/cpp -isystem /usr/include/opencv4 -g -o CMakeFiles/myMultiDeviceSync.dir/src/multiDevice_funcs.cpp.o -c /home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/multiDevice_funcs.cpp",
+  "file": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/multiDevice_funcs.cpp",
+  "output": "CMakeFiles/myMultiDeviceSync.dir/src/multiDevice_funcs.cpp.o"
+},
+{
+  "directory": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/build",
+  "command": "/usr/bin/cc  -I/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include -I/home/enes/Desktop/ORBBEC/OrbbecSDK/include/libobsensor/hpp -I/home/enes/Desktop/ORBBEC/OrbbecSDK/examples/cpp -isystem /usr/include/opencv4 -g -o CMakeFiles/myMultiDeviceSync.dir/src/cJSON.c.o -c /home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/cJSON.c",
+  "file": "/home/enes/Desktop/ORBBEC/Orbbec_Codes/MultiDevice_pointCloud/src/cJSON.c",
+  "output": "CMakeFiles/myMultiDeviceSync.dir/src/cJSON.c.o"
+}
+]
