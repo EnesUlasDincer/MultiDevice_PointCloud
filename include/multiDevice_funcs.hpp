@@ -31,12 +31,15 @@ typedef struct DeviceConfigInfo_t {
   OBMultiDeviceSyncConfig syncConfig;
 } DeviceConfigInfo;
 
-typedef struct PipelineHolderr_t {
-  std::shared_ptr<ob::Pipeline> pipeline;
-  OBSensorType sensorType;
-  int deviceIndex;
-  std::string deviceSN;
+// First, let's properly define the PipelineHolder structure
+typedef struct PipelineHolder_t {
+    std::shared_ptr<ob::Pipeline> pipeline;
+    OBSensorType sensorType;
+    int deviceIndex;
+    std::string deviceSN;
+    float depthValueScale;
 } PipelineHolder;
+
 std::ostream &operator<<(std::ostream &os, const PipelineHolder &holder);
 std::ostream &operator<<(std::ostream &os,
                          std::shared_ptr<PipelineHolder> holder);
@@ -67,10 +70,11 @@ bool checkDevicesWithDeviceConfigs(
     const std::vector<std::shared_ptr<ob::Device>> &deviceList);
 int strcmp_nocase(const char *str0, const char *str1);
 
-std::shared_ptr<PipelineHolder> createPipelineHolder(
-    std::shared_ptr<ob::Device> device, OBSensorType sensorType,
-    int deviceIndex);
-void startStream(std::shared_ptr<PipelineHolder> pipelineHolder);
+// std::shared_ptr<PipelineHolder> createPipelineHolder(
+//     std::shared_ptr<ob::Device> device, OBSensorType sensorType,
+//     int deviceIndex);
+
+void startStream(std::shared_ptr<PipelineHolder> holder, ob::PointCloudFilter &pointCloudFilter) ;
 void stopStream(std::shared_ptr<PipelineHolder> pipelineHolder);
 
 void handleColorStream(int devIndex, std::shared_ptr<ob::Frame> frame);
